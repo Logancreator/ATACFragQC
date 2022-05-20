@@ -1,3 +1,4 @@
+from email.policy import default
 import os, sys, re, getopt, functools, pysam
 import pandas as pd
 import numpy as np
@@ -182,6 +183,8 @@ def bedScan(args):
     result.save(pathname+'_qc.png')
     [os.remove(pathname+'.tmp'+c+'.png') for c in pic_list]
 
+###reshape
+
 def main():
     opts, args = getopt.getopt(sys.argv[1:], 
         'hoi:r:g:m:q:l:f:c:p:n:w:', 
@@ -202,6 +205,7 @@ def main():
         +'-p, --pic [a,b,c]\tThe list of images would be shown (default: all)\n'\
         +'-f, --filter [aaa,bbb]\tThe list of chromosomes which should be filtered (default: none)\n'\
         +'-w, --widthtss [100-10000]\tThe regions around the TSS that needs to be calculated (default: 900)\n'
+       # +'-F, --Figure [marker]\t The Figure about scale one region or gene (default:CTCF)\n'
     for opt, arg in opts:
         if opt in ('-h', '--help'):
             help_flag = True
