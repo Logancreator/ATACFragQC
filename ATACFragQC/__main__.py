@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from plotnine import *
 from PIL import Image
+from tqdm import tqdm
 
 from ATACFragQC import __version__
 
