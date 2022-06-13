@@ -10,6 +10,7 @@ from ATACFragQC import __version__
 class ArgumentList:
     file_bam = ""
     file_ref = ""
+    file_name = ""
     file_out = False
     delmt = False
     group_marker = ""
@@ -24,6 +25,7 @@ class ArgumentList:
     def __init__(self):
         self.file_bam = ""
         self.file_ref = ""
+        self.file_name = ""
         self.file_out = False
         self.delmt = False
         self.group_marker = ""
@@ -55,6 +57,9 @@ def chr_cmp(a, b):
 def bedScan(args):
     (pathname, extension) = os.path.splitext(args.file_bam)
     (filepath, filename) = os.path.split(pathname)
+    if args.file_name != "":
+        filename = args.file_name
+    pathname = os.path.join(filepath, filename)
     if not os.path.isfile(args.file_bam+".bai"):
         print("Creating the index file of bam...")
         if os.system("which samtools") == 0:
@@ -196,8 +201,8 @@ def bedScan(args):
 
 def main():
     opts, args = getopt.getopt(sys.argv[1:], 
-        "hodi:r:g:m:q:l:f:c:p:n:w:", 
-        ["help", "output", "input=", "reference=", "group=", "mode=", "quality=", "length=", "filter=", "chr=", "pic=", "nl=","widthtss="])
+        "hodi:r:g:s:m:q:l:f:c:p:n:w:", 
+        ["help", "output", "input=", "reference=", "group=", "save=", "mode=", "quality=", "length=", "filter=", "chr=", "pic=", "nl=","widthtss="])
     arguments = ArgumentList()
     help_flag = False
     help_info = "Usage:\nATACFragQC [options] -i <input.bam> -r <reference.gtf>\nArguments:\n"\
@@ -205,6 +210,7 @@ def main():
         +"-i, --input <file>\tA aligned & deduped BAM file\n"\
         +"-r, --reference <file>\tGTF genome annotation\n"\
         +"-g, --group [marker]\tThe TSS of each group would be calculated if -g was set\n"\
+        +"-s, --save <name>\tThe name of results (default: same as the bam)\n"\
         +"-o, --output [T/F]\tThe table of results would be saved if -o was set (default: False)\n"\
         +"-m, --mode [F/C]\tThe TSS enrichment would be calculated by fragments (F) or cutsites(C) (default: F)\n"\
         +"-q, --quality [1-255]\tThe quality limit of alignment (default: 5)\n"\
@@ -224,6 +230,8 @@ def main():
             arguments.file_ref = arg
         elif opt in ("-g", "--group"):
             arguments.group_marker = arg
+        elif opt in ("-s", "--save"):
+            arguments.file_name = arg
         elif opt in ("-o", "--output"):
             arguments.file_out = True
         elif opt in ("-d", "--delmt"):
