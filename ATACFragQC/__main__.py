@@ -113,7 +113,7 @@ def bedScan(args):
     for chr in chr_dist:
         count = 0
         for read in fs.fetch(chr):
-            if (read.flag & 65) == 65 and (read.flag & 784) == 0 and read.mapq > args.quality and read.isize > 0 and read.isize < 501:
+            if (read.flag & 3) == 3 and (read.flag & 788) == 0 and read.mapq > args.quality and read.isize > 0 and read.isize < 501:
                 len_count[read.isize] += 1
                 count += 1
         chr_count[chr] = count
@@ -129,12 +129,22 @@ def bedScan(args):
         count = np.zeros(tss_range, dtype=np.int64)
         for frag in fs.fetch(row["seq_id"], row["start"], row["end"]):
             if args.calc_mode == "F":
-                if (frag.flag & 65) == 65 and (frag.flag & 1808) == 0 and frag.mapq > args.quality and frag.isize > 0 and frag.isize < args.isize:
+                if (frag.flag & 3) == 3 and (frag.flag & 1812) == 0 and frag.mapq > args.quality and frag.isize > 0 and frag.isize < args.isize:
                     count[range(max(0, frag.pos - row["start"]), min(tss_range, frag.pos + frag.isize - row["start"]))] += 1
-            else:
-                if (frag.flag & 65) == 65 and (frag.flag & 1808) == 0 and frag.mapq > args.quality and frag.isize > 0:
+            elif args.calc_mode == "C":
+                if (frag.flag & 3) == 3 and (frag.flag & 1812) == 0 and frag.mapq > args.quality and frag.isize > 0:
                     count[max(0, frag.pos - row["start"])] += 1
                     count[min(tss_range, frag.pos + frag.isize - row["start"]) - 1] += 1
+            elif args.calc_mode == "M":
+                if (frag.flag & 3) == 3 and (frag.flag & 1812) == 0 and frag.mapq > args.quality and frag.isize > 0:
+                    if length(frag.isize % 2 == 1):
+                        count[frag.pos + (frag.isize - 1)/2 - row["start"]] += 1
+                    else:
+                        count[frag.pos + frag.isize/2 - row["start"]] += 1
+                        count[frag.pos + frag.isize/2 - 1 - row["start"]] += 1
+            else:
+                if (frag.flag & 3) == 3 and (frag.flag & 1812) == 0 and frag.mapq > args.quality and frag.isize > 0 and frag.isize < args.isize:
+                    count[range(max(0, frag.pos - row["start"]), min(tss_range, frag.pos + frag.isize - row["start"]))] += 1
         if sum(count) > 0:
             dist_count.append(count)
     dist_count = np.array(dist_count)
@@ -153,21 +163,16 @@ def bedScan(args):
     pic_list = ["a", "b", "c"]
     pic_list = list(set(pic_list).intersection(set(args.pic_list.split(","))))
     pic_list.sort()
-    if dist_count.size == 0:
+    if "c" in pic_list and dist_count.size == 0:
         pic_list.remove("c")
     if len(pic_list) == 0:
         return
     if "a" in pic_list:
-        ggsave(plot=ggplot(chr_count, aes(x="V1", y="V2"))+geom_bar(stat="identity", width=0.8, fill="#80B1D3")+
-            labs(x="Chromosome", y="Fragments")+
-            theme(plot_title=element_blank(), panel_background=element_blank(), axis_line=element_line(colour="black"), 
-            axis_text_y=element_text(colour="black"), axis_text_x=element_text(angle=270, hjust=0.3, vjust=1, colour="black")), 
-            width=4, height=6, dpi=200, filename=pathname+".tmpa.png", limitsize=False, verbose=False)
+        plot = ggplot(chr_count, aes(x="V1", y="V2"))+geom_bar(stat="identity", width=0.8, fill="#80B1D3")+labs(x="Chromosome", y="Fragments")+scale_y_continuous(expand=(0, 0))+theme(plot_title=element_blank(), panel_background=element_blank(), axis_line=element_line(colour="black"), axis_text_y=element_text(colour="black"), axis_text_x=element_text(angle=270, hjust=0.3, vjust=1, colour="black"))
+        plot.save(width=4, height=6, dpi=200, filename=pathname+".tmpa.png", limitsize=False, verbose=False)
     if "b" in pic_list:
-        ggsave(plot=ggplot(len_count, aes(x="V1", y="V2"))+geom_bar(stat="identity", colour="#80B1D3", fill="#80B1D3")+
-            labs(x="\nInsert Size", y="Fragments")+
-            theme(plot_title=element_blank(), panel_background=element_blank(), axis_line=element_line(colour="black"), axis_text=element_text(colour="black")), 
-            width=6, height=6, dpi=200, filename=pathname+".tmpb.png", limitsize=False, verbose=False)
+        plot = ggplot(len_count, aes(x="V1", y="V2"))+geom_bar(stat="identity", colour="#80B1D3", fill="#80B1D3")+labs(x="\nInsert Size", y="Fragments")+scale_y_continuous(expand=(0, 0))+theme(plot_title=element_blank(), panel_background=element_blank(), axis_line=element_line(colour="black"), axis_text=element_text(colour="black"))
+        plot.save(width=6, height=6, dpi=200, filename=pathname+".tmpb.png", limitsize=False, verbose=False)
     if "c" in pic_list:
         break_length = 50
         if args.widthtss > 6000:
@@ -179,11 +184,8 @@ def bedScan(args):
         elif args.widthtss > 400:
             break_length = 200
         break_range = max(1, args.widthtss//break_length)*break_length
-        ggsave(plot=ggplot(dist_count, aes(x="V1", y="V2"))+geom_line(size=1, colour="#80B1D3")+
-            labs(x="\nDistance from TSS (bp)", y="Mean TSS enrichment score")+
-            scale_x_continuous(breaks=range(-break_range, break_range+1, break_length))+
-            theme(plot_title=element_blank(), panel_background=element_blank(), axis_line=element_line(colour="black"), axis_text=element_text(colour="black")), 
-            width=6, height=6, dpi=200, filename=pathname+".tmpc.png", limitsize=False, verbose=False)
+        plot = ggplot(dist_count, aes(x="V1", y="V2"))+geom_line(size=1, colour="#80B1D3")+labs(x="\nDistance from TSS (bp)", y="Mean TSS enrichment score")+scale_y_continuous(expand=(0, 0))+scale_x_continuous(breaks=range(-break_range, break_range+1, break_length))+theme(plot_title=element_blank(), panel_background=element_blank(), axis_line=element_line(colour="black"), axis_text=element_text(colour="black"))
+        plot.save(width=6, height=6, dpi=200, filename=pathname+".tmpc.png", limitsize=False, verbose=False)
     width = 0
     height = 0
     imgs = [Image.open(pathname+".tmp"+c+".png") for c in pic_list]
@@ -212,7 +214,7 @@ def main():
         +"-g, --group [marker]\tThe TSS of each group would be calculated if -g was set\n"\
         +"-s, --save <name>\tThe name of results (default: same as the bam)\n"\
         +"-o, --output [T/F]\tThe table of results would be saved if -o was set (default: False)\n"\
-        +"-m, --mode [F/C]\tThe TSS enrichment would be calculated by fragments (F) or cutsites(C) (default: F)\n"\
+        +"-m, --mode [F/C/M]\tThe TSS enrichment would be calculated by fragments (F), cutsites(C) or midsites(M) (default: F)\n"\
         +"-q, --quality [1-255]\tThe quality limit of alignment (default: 5)\n"\
         +"-l, --length [50-500]\tThe length limit of nucleosome-free fragment (default: 147)\n"\
         +"-c, --chr [aaa,bbb]\tThe list of chromosomes would be used (default: all)\n"\
